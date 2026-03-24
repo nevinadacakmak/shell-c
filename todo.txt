@@ -1,0 +1,6 @@
+todo
+
+1-Pipes
+ls | grep foo : pipe and dup2
+2- I/O redirection : dup2, open.
+3- Background processes : ie sleep 10 
