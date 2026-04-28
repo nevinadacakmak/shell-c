@@ -4,7 +4,27 @@
 #include <errno.h>
 #include <sys/wait.h>
 
-#define MAX_INT 2147483647
+int in(char *argv[], int len, char chr, char chr2)
+{
+    //returns 1 if chr in argv, 0 otherwise
+    for (int i = 0; i < len; i++)
+    {
+        if (strcmp(argv[i],&chr)==0 || strcmp(argv[i], &chr2)==0)
+            return 1;
+    }
+    return 0;
+}
+
+int locate(char *argv[], int len, char chr, char chr2)
+{
+    //returns 1 if chr in argv, 0 otherwise
+    for (int i = 0; i < len; i++)
+    {
+        if (strcmp(argv[i],&chr)==0 || strcmp(argv[i], &chr2)==0)
+            return i;
+    }
+    return -1;
+}
 
 int main(){
 
@@ -29,7 +49,7 @@ int main(){
         i++;
         while (token != NULL)
         {
-            printf("prev token: %s\n",token);
+            //printf("prev token: %s\n",token);
 
             token = strtok(NULL, delim); //need this NULL call to keep going, according to strtok stackoverflow
 
@@ -39,10 +59,73 @@ int main(){
             
         }
         argv[i] = NULL;
+        int len = i--;
 
         //execvp cant handle cd.
 
-        if (strcmp(argv[0],"cd")==0)
+        if(strcmp(argv[0],"exit")==0)
+        {
+            return 0;
+        }
+        else if(in(argv,len,'|','|'))
+        {
+            printf("pipe (|) detected\n");
+
+            int loc = locate(argv,len,'|','|');
+
+            int err=0;
+            int p[2];
+            err=pipe(p);
+            if (err==-1)
+                perror("problem with pipe()\n");
+
+            int c_pid = 0;
+            c_pid = fork();
+
+            if (c_pid == 0) //child1
+            {
+                //writes
+                printf("in the child 1\n");
+                close(p[0]);
+                int res1;
+                res1=dup2(p[1],STDOUT_FILENO);
+                //error handling
+                execvp(argv[0],argv);
+                close(p[1]);
+
+            }
+            else //parent
+            {
+                printf("in the parent\n");
+
+                int c_pid2 = 0;
+                c_pid2 = fork();
+                //what to close?
+
+                if (c_pid == 0) //child2
+                {
+                    //reads
+                    close(p[1]);
+                    printf("in the child2\n");
+                    int res2;
+                    res2=dup2(p[0],STDIN_FILENO);
+                    //error handling
+                    execvp(argv[loc],&argv[loc]);
+                    close(p[0]);
+
+                }
+            }
+        }
+        else if(in(argv,i,'<','>'))
+        {
+            printf("io redirection (<,>) detected\n");
+            //io redirection
+        }
+        else if(strcmp(argv[0],"sleep")==0)
+        {
+            //sleep
+        }
+        else if (strcmp(argv[0],"cd")==0)
         {
             //char address[1024] = "/";
             //strcat(address,argv[1]);
@@ -50,11 +133,7 @@ int main(){
             chdir(argv[1]);
             printf("chdir with %s\n",argv[1]);
         }
-        else if(strcmp(argv[0],"exit")==0)
-        {
-            return 0;
-        }
-        else
+        else //other calls
         {
             //fork, execvp, wait
             int c_pid = 0;
