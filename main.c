@@ -4,23 +4,25 @@
 #include <errno.h>
 #include <sys/wait.h>
 
-int in(char *argv[], int len, char chr, char chr2)
+int in(char *argv[], int len, char *chr, char *chr2)
 {
+    //printf("in()\n");
     //returns 1 if chr in argv, 0 otherwise
     for (int i = 0; i < len; i++)
     {
-        if (strcmp(argv[i],&chr)==0 || strcmp(argv[i], &chr2)==0)
+        if (argv[i] != NULL && (strcmp(argv[i],chr)==0 || strcmp(argv[i], chr2)==0))
             return 1;
     }
     return 0;
 }
 
-int locate(char *argv[], int len, char chr, char chr2)
+int locate(char *argv[], int len, char *chr, char *chr2) //check: * chr
 {
-    //returns 1 if chr in argv, 0 otherwise
+    //printf("locate()\n");
+    //returns location if chr in argv, -1 otherwise
     for (int i = 0; i < len; i++)
     {
-        if (strcmp(argv[i],&chr)==0 || strcmp(argv[i], &chr2)==0)
+        if (argv[i] != NULL && (strcmp(argv[i],chr)==0 || strcmp(argv[i], chr2)==0))
             return i;
     }
     return -1;
@@ -54,12 +56,13 @@ int main(){
             token = strtok(NULL, delim); //need this NULL call to keep going, according to strtok stackoverflow
 
             argv[i] = token;
-            printf("current i=%d token=%s\n", i, token); //issue here
+            printf("current i=%d token=%s\n", i, token);
             i++;
             
         }
         argv[i] = NULL;
-        int len = i--;
+        int len = i-1; //len is the first invalid argv index, also the number of tokens
+        //printf("len is %d\n",len);
 
         //execvp cant handle cd.
 
@@ -67,11 +70,11 @@ int main(){
         {
             return 0;
         }
-        else if(in(argv,len,'|','|'))
+        else if(in(argv,len,"|","|"))
         {
             printf("pipe (|) detected\n");
 
-            int loc = locate(argv,len,'|','|');
+            int loc = locate(argv,len,"|","|");
 
             int err=0;
             int p[2];
@@ -89,9 +92,14 @@ int main(){
                 close(p[0]);
                 int res1;
                 res1=dup2(p[1],STDOUT_FILENO);
-                //error handling
-                execvp(argv[0],argv);
+                if (res1==-1)
+                    perror("error with dup2");
+
+                argv[loc]=NULL;
                 close(p[1]);
+                int call=execvp(argv[0],argv);
+                if (call==-1)
+                    perror("error with execvp in dup2");
 
             }
             else //parent
@@ -102,7 +110,7 @@ int main(){
                 c_pid2 = fork();
                 //what to close?
 
-                if (c_pid == 0) //child2
+                if (c_pid2 == 0) //child2
                 {
                     //reads
                     close(p[1]);
@@ -110,13 +118,20 @@ int main(){
                     int res2;
                     res2=dup2(p[0],STDIN_FILENO);
                     //error handling
-                    execvp(argv[loc],&argv[loc]);
                     close(p[0]);
+                    execvp(argv[loc+1],&argv[loc+1]);
 
                 }
+                close(p[0]);
+                close(p[1]);
+                //where to close?
+                int childstatus;
+                wait(&childstatus);
+                int childstatus2;
+                wait(&childstatus2);
             }
         }
-        else if(in(argv,i,'<','>'))
+        else if(in(argv,i,"<",">"))
         {
             printf("io redirection (<,>) detected\n");
             //io redirection
