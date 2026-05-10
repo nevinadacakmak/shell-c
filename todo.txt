@@ -1,7 +1,12 @@
 todo
 
-1- I/O redirection : dup2, open.
-2- Background processes : ie sleep 10 
+* change in() and loc() header
+* append redirection
+* stderr redirection
+* background execution
+* signal handling
+* env variables
+* see if longer commands including cd, sleep etc with ; work
 
 resources
 lookup cs61 shell lab writeup from Harvard

@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 int in(char *argv[], int len, char *chr, char *chr2)
 {
@@ -42,6 +44,7 @@ int main(){
         input[strcspn(input, "\n")] = '\0';
         //issue1: what if someone wants to put multiple lines?
         //issue2: just pressing enter, undefined behaviour.
+        //issue3: what if there are multiple |'s or <'s
         printf("i read this: %s\n",input);
 
         token = strtok(input, delim);
@@ -66,11 +69,11 @@ int main(){
 
         //execvp cant handle cd.
 
-        if(strcmp(argv[0],"exit")==0)
+        if(strcmp(argv[0],"exit")==0) //exit
         {
             return 0;
         }
-        else if(in(argv,len,"|","|"))
+        else if(in(argv,len,"|","|")) //pipe
         {
             printf("pipe (|) detected\n");
 
@@ -117,7 +120,8 @@ int main(){
                     printf("in the child2\n");
                     int res2;
                     res2=dup2(p[0],STDIN_FILENO);
-                    //error handling
+                    if (res2==-1)
+                        perror("error with dup2");
                     close(p[0]);
                     execvp(argv[loc+1],&argv[loc+1]);
 
@@ -131,21 +135,58 @@ int main(){
                 wait(&childstatus2);
             }
         }
-        else if(in(argv,i,"<",">"))
+        else if(in(argv,len,"<",">")) // io redirection
         {
             printf("io redirection (<,>) detected\n");
-            //io redirection
+            // command <> file
+
+            int loc = locate(argv,len,"<",">");
+            int flag = (strcmp(argv[loc], "<") == 0);
+
+
+            int c_pid = 0;
+            c_pid = fork();
+
+            if (c_pid == 0) //child1
+            {
+                //writes
+                printf("in the child 1\n");
+
+                int res1;
+                printf("%s\n",argv[len+1]);
+                int fd;
+                if (flag)
+                {
+                    fd = open(argv[loc+1], O_RDONLY); //which modes?
+                    res1=dup2(fd,STDIN_FILENO);
+                }
+                else
+                {
+                    fd = open(argv[loc+1], O_WRONLY | O_CREAT | O_TRUNC, 0644); //which modes?
+                    res1=dup2(fd,STDOUT_FILENO);
+                }
+                if (res1==-1)
+                    perror("error with dup2");
+
+                argv[loc]=NULL;
+                close(fd);
+                int call=execvp(argv[0],argv); //is this how to exec until argv[loc]?
+                if (call==-1)
+                    perror("error with execvp in dup2");
+            }
+            else //parent
+            {
+                printf("in the parent\n");
+                int childstatus;
+                wait(&childstatus);
+
+            }
+
         }
-        else if(strcmp(argv[0],"sleep")==0)
+        else if (in(argv,len,"cd","cd")) //cd
         {
-            //sleep
-        }
-        else if (strcmp(argv[0],"cd")==0)
-        {
-            //char address[1024] = "/";
-            //strcat(address,argv[1]);
-            //strcpy(argv[1],address);
-            chdir(argv[1]);
+            int loc = locate(argv,len,"cd","cd");
+            chdir(argv[loc+1]);
             printf("chdir with %s\n",argv[1]);
         }
         else //other calls
