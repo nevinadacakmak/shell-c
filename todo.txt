@@ -3,8 +3,8 @@ todo
 * change in() and loc() header
 * append redirection
 * stderr redirection
-* background execution
-* signal handling
+* background execution - priority
+* signal handling - priority
 * env variables
 * see if longer commands including cd, sleep etc with ; work
 
