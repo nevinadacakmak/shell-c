@@ -5,6 +5,14 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <signal.h>
+
+void sig_handler(int sig){
+    int status=1;
+    while(status>0){
+        waitpid(-1, &status, WNOHANG);
+    }
+}
 
 int in(char *argv[], int len, char *chr, char *chr2)
 {
@@ -36,11 +44,23 @@ int main(){
     char *delim = " ";
     char *token;
     char *argv[1024] = {};
+    int bgflag=1;
 
     printf("hello. welcome to the shell\n");
 
+    struct sigaction sa;
+    sa.sa_handler=&sig_handler;
+    sa.sa_flags = SA_RESTART;
+    sigemptyset(&sa.sa_mask);
+
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("error, sigaction");
+        return 1;
+    }
+
     while (fgets(input, sizeof(input), stdin) != NULL)
     {
+        bgflag=1;
         input[strcspn(input, "\n")] = '\0';
         //issue1: what if someone wants to put multiple lines?
         //issue2: just pressing enter, undefined behaviour.
@@ -68,7 +88,12 @@ int main(){
         //printf("len is %d\n",len);
 
         //execvp cant handle cd.
-
+        if (in(argv,len,"&","&")) //background process
+        {
+            bgflag=0;
+            int loc_amp = locate(argv,len,"&","&");
+            argv[loc_amp] = NULL;
+        }
         if(strcmp(argv[0],"exit")==0) //exit
         {
             return 0;
@@ -129,10 +154,13 @@ int main(){
                 close(p[0]);
                 close(p[1]);
                 //where to close?
-                int childstatus;
-                wait(&childstatus);
-                int childstatus2;
-                wait(&childstatus2);
+                if (bgflag)
+                {
+                    int childstatus;
+                    wait(&childstatus);
+                    int childstatus2;
+                    wait(&childstatus2);
+                }
             }
         }
         else if(in(argv,len,"<",">")) // io redirection
@@ -177,8 +205,11 @@ int main(){
             else //parent
             {
                 printf("in the parent\n");
-                int childstatus;
-                wait(&childstatus);
+                if (bgflag)
+                {
+                    int childstatus;
+                    wait(&childstatus);
+                }
 
             }
 
@@ -214,8 +245,11 @@ int main(){
             else //parent
             {
                 printf("in the parent, PID = %d\n",c_pid);
-                int childstatus;
-                wait(&childstatus);
+                if (bgflag)
+                {
+                    int childstatus;
+                    wait(&childstatus);
+                }
             }
         }
     }
