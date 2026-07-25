@@ -87,7 +87,7 @@ int main(){
     sadef.sa_flags = 0;
     sigemptyset(&sadef.sa_mask);
 
-    printf("ada ~ $ ");
+    printf("ada~$ ");
 
     while (fgets(input, sizeof(input), stdin) != NULL)
     {
@@ -238,7 +238,7 @@ int main(){
                 fprintf(stderr,DEBUG "in the child 1\n" RESET);
 
                 int res1;
-                fprintf(stderr,DEBUG "%s\n" RESET,argv[len+1]);
+                //fprintf(stderr,DEBUG "%s\n" RESET,argv[len+1]);
                 int fd;
                 if (flag)
                 {
@@ -317,7 +317,7 @@ int main(){
                 }
             }
         }
-        printf("ada ~ $ ");
+        printf("ada~$ ");
     }
 
     return 0;
