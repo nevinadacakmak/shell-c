@@ -8,9 +8,10 @@
 #include <signal.h>
 
 void sig_handler(int sig){
-    int status=1;
-    while(status>0){
-        waitpid(-1, &status, WNOHANG);
+    int status;
+    int res=1;
+    while(res>0){
+        res=waitpid(-1, &status, WNOHANG);
     }
 }
 
@@ -57,6 +58,31 @@ int main(){
         perror("error, sigaction");
         return 1;
     }
+
+    struct sigaction sa2;
+    sa2.sa_handler = SIG_IGN; 
+    sa2.sa_flags = 0;
+    sigemptyset(&sa2.sa_mask);
+
+    if (sigaction(SIGINT, &sa2, NULL) == -1) {
+        perror("error, sigaction");
+        return 1;
+    }
+
+    struct sigaction sa3;
+    sa3.sa_handler = SIG_IGN; 
+    sa3.sa_flags = 0;
+    sigemptyset(&sa3.sa_mask);
+
+    if (sigaction(SIGTSTP, &sa3, NULL) == -1) {
+        perror("error, sigaction");
+        return 1;
+    }
+
+    struct sigaction sadef;
+    sadef.sa_handler = SIG_DFL; 
+    sadef.sa_flags = 0;
+    sigemptyset(&sadef.sa_mask);
 
     while (fgets(input, sizeof(input), stdin) != NULL)
     {
@@ -115,6 +141,15 @@ int main(){
 
             if (c_pid == 0) //child1
             {
+                if (sigaction(SIGTSTP, &sadef, NULL) == -1) {
+                    perror("error, sigaction");
+                    return 1;
+                }
+                if (sigaction(SIGINT, &sadef, NULL) == -1) {
+                    perror("error, sigaction");
+                    return 1;
+                }
+
                 //writes
                 printf("in the child 1\n");
                 close(p[0]);
@@ -140,6 +175,14 @@ int main(){
 
                 if (c_pid2 == 0) //child2
                 {
+                    if (sigaction(SIGTSTP, &sadef, NULL) == -1) {
+                    perror("error, sigaction");
+                    return 1;
+                    }
+                    if (sigaction(SIGINT, &sadef, NULL) == -1) {
+                        perror("error, sigaction");
+                        return 1;
+                    }
                     //reads
                     close(p[1]);
                     printf("in the child2\n");
@@ -177,6 +220,14 @@ int main(){
 
             if (c_pid == 0) //child1
             {
+                if (sigaction(SIGTSTP, &sadef, NULL) == -1) {
+                    perror("error, sigaction");
+                    return 1;
+                }
+                if (sigaction(SIGINT, &sadef, NULL) == -1) {
+                    perror("error, sigaction");
+                    return 1;
+                }
                 //writes
                 printf("in the child 1\n");
 
@@ -227,6 +278,14 @@ int main(){
             c_pid = fork();
             if (c_pid == 0) //child
             {
+                if (sigaction(SIGTSTP, &sadef, NULL) == -1) {
+                    perror("error, sigaction");
+                    return 1;
+                }
+                if (sigaction(SIGINT, &sadef, NULL) == -1) {
+                    perror("error, sigaction");
+                    return 1;
+                }
                 printf("this is the child\n");
 
                 int iserr = 0;
