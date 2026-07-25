@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#define DEBUG "\033[36m"
+#define RESET "\033[0m"
+
 void sig_handler(int sig){
     int status;
     int res=1;
@@ -17,7 +20,7 @@ void sig_handler(int sig){
 
 int in(char *argv[], int len, char *chr, char *chr2)
 {
-    //printf("in()\n");
+    //fprintf(stderr,"in()\n");
     //returns 1 if chr in argv, 0 otherwise
     for (int i = 0; i < len; i++)
     {
@@ -29,7 +32,7 @@ int in(char *argv[], int len, char *chr, char *chr2)
 
 int locate(char *argv[], int len, char *chr, char *chr2) //check: * chr
 {
-    //printf("locate()\n");
+    //fprintf(stderr,"locate()\n");
     //returns location if chr in argv, -1 otherwise
     for (int i = 0; i < len; i++)
     {
@@ -47,7 +50,7 @@ int main(){
     char *argv[1024] = {};
     int bgflag=1;
 
-    printf("hello. welcome to the shell\n");
+    fprintf(stderr,DEBUG "hello. welcome to the shell\n" RESET);
 
     struct sigaction sa;
     sa.sa_handler=&sig_handler;
@@ -84,14 +87,15 @@ int main(){
     sadef.sa_flags = 0;
     sigemptyset(&sadef.sa_mask);
 
+    printf("ada ~ $ ");
+
     while (fgets(input, sizeof(input), stdin) != NULL)
     {
         bgflag=1;
         input[strcspn(input, "\n")] = '\0';
         //issue1: what if someone wants to put multiple lines?
-        //issue2: just pressing enter, undefined behaviour.
         //issue3: what if there are multiple |'s or <'s
-        printf("i read this: %s\n",input);
+        fprintf(stderr,DEBUG "i read this: %s\n" RESET,input);
 
         token = strtok(input, delim);
 
@@ -100,18 +104,20 @@ int main(){
         i++;
         while (token != NULL)
         {
-            //printf("prev token: %s\n",token);
+            //fprintf(stderr,"prev token: %s\n",token);
 
             token = strtok(NULL, delim); //need this NULL call to keep going, according to strtok stackoverflow
 
             argv[i] = token;
-            printf("current i=%d token=%s\n", i, token);
+            fprintf(stderr,DEBUG "current i=%d token=%s\n" RESET, i, token);
             i++;
             
         }
         argv[i] = NULL;
         int len = i-1; //len is the first invalid argv index, also the number of tokens
-        //printf("len is %d\n",len);
+        //fprintf(stderr,"len is %d\n",len);
+
+        if (argv[0] == NULL) continue;
 
         //execvp cant handle cd.
         if (in(argv,len,"&","&")) //background process
@@ -126,7 +132,7 @@ int main(){
         }
         else if(in(argv,len,"|","|")) //pipe
         {
-            printf("pipe (|) detected\n");
+            fprintf(stderr,DEBUG "pipe (|) detected\n" RESET);
 
             int loc = locate(argv,len,"|","|");
 
@@ -151,7 +157,7 @@ int main(){
                 }
 
                 //writes
-                printf("in the child 1\n");
+                fprintf(stderr,DEBUG "in the child 1\n" RESET);
                 close(p[0]);
                 int res1;
                 res1=dup2(p[1],STDOUT_FILENO);
@@ -167,7 +173,7 @@ int main(){
             }
             else //parent
             {
-                printf("in the parent\n");
+                fprintf(stderr,DEBUG"in the parent\n" RESET);
 
                 int c_pid2 = 0;
                 c_pid2 = fork();
@@ -185,7 +191,7 @@ int main(){
                     }
                     //reads
                     close(p[1]);
-                    printf("in the child2\n");
+                    fprintf(stderr,DEBUG "in the child2\n" RESET);
                     int res2;
                     res2=dup2(p[0],STDIN_FILENO);
                     if (res2==-1)
@@ -208,7 +214,7 @@ int main(){
         }
         else if(in(argv,len,"<",">")) // io redirection
         {
-            printf("io redirection (<,>) detected\n");
+            fprintf(stderr,DEBUG "io redirection (<,>) detected\n" RESET);
             // command <> file
 
             int loc = locate(argv,len,"<",">");
@@ -229,10 +235,10 @@ int main(){
                     return 1;
                 }
                 //writes
-                printf("in the child 1\n");
+                fprintf(stderr,DEBUG "in the child 1\n" RESET);
 
                 int res1;
-                printf("%s\n",argv[len+1]);
+                fprintf(stderr,DEBUG "%s\n" RESET,argv[len+1]);
                 int fd;
                 if (flag)
                 {
@@ -255,7 +261,7 @@ int main(){
             }
             else //parent
             {
-                printf("in the parent\n");
+                fprintf(stderr,DEBUG "in the parent\n" RESET);
                 if (bgflag)
                 {
                     int childstatus;
@@ -269,7 +275,7 @@ int main(){
         {
             int loc = locate(argv,len,"cd","cd");
             chdir(argv[loc+1]);
-            printf("chdir with %s\n",argv[1]);
+            fprintf(stderr,DEBUG "chdir with %s\n" RESET,argv[1]);
         }
         else //other calls
         {
@@ -286,7 +292,7 @@ int main(){
                     perror("error, sigaction");
                     return 1;
                 }
-                printf("this is the child\n");
+                fprintf(stderr,DEBUG "this is the child\n" RESET);
 
                 int iserr = 0;
                 iserr = execvp(argv[0],argv);
@@ -294,7 +300,7 @@ int main(){
                 if (iserr == -1) 
                 {
                     perror("problem with execvp, argv[]\n");
-                    printf("current argv[0]: %s\n",argv[0]);
+                    fprintf(stderr,DEBUG "current argv[0]: %s\n" RESET,argv[0]);
                 }  
             }
             else if (c_pid == -1)
@@ -303,7 +309,7 @@ int main(){
             }
             else //parent
             {
-                printf("in the parent, PID = %d\n",c_pid);
+                fprintf(stderr,DEBUG "in the parent, PID = %d\n" RESET,c_pid);
                 if (bgflag)
                 {
                     int childstatus;
@@ -311,6 +317,7 @@ int main(){
                 }
             }
         }
+        printf("ada ~ $ ");
     }
 
     return 0;
